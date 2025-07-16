@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-// @ts-ignore - CCXT browser bundle doesn't have perfect types
-import ccxt from 'ccxt';
+import { mockCryptoData, updateMockPrices } from '@/data/mockData';
 
 export interface CryptoTicker {
   symbol: string;
@@ -14,6 +13,23 @@ export interface CryptoTicker {
   marketCap?: number;
 }
 
+// Exchange API configurations
+const exchangeConfigs = {
+  binance: {
+    tickerUrl: 'https://api.binance.com/api/v3/ticker/24hr',
+    name: 'Binance'
+  },
+  bybit: {
+    tickerUrl: 'https://api.bybit.com/v5/market/tickers?category=spot',
+    name: 'Bybit'
+  },
+  coinbase: {
+    tickerUrl: 'https://api.exchange.coinbase.com/products',
+    statsUrl: 'https://api.exchange.coinbase.com/products/{symbol}/stats',
+    name: 'Coinbase'
+  }
+};
+
 export function useCryptoData(exchangeName: string, searchQuery: string = '') {
   const [tickers, setTickers] = useState<CryptoTicker[]>([]);
   const [loading, setLoading] = useState(true);
@@ -22,75 +38,134 @@ export function useCryptoData(exchangeName: string, searchQuery: string = '') {
   useEffect(() => {
     let isMounted = true;
 
+    const fetchBinanceData = async (): Promise<CryptoTicker[]> => {
+      const response = await fetch(exchangeConfigs.binance.tickerUrl);
+      const data = await response.json();
+      
+      return data
+        .filter((ticker: any) => ticker.symbol.endsWith('USDT'))
+        .map((ticker: any) => ({
+          symbol: ticker.symbol,
+          baseAsset: ticker.symbol.replace('USDT', ''),
+          quoteAsset: 'USDT',
+          price: parseFloat(ticker.lastPrice),
+          change24h: parseFloat(ticker.priceChangePercent),
+          volume24h: parseFloat(ticker.quoteVolume),
+          high24h: parseFloat(ticker.highPrice),
+          low24h: parseFloat(ticker.lowPrice),
+        }));
+    };
+
+    const fetchBybitData = async (): Promise<CryptoTicker[]> => {
+      const response = await fetch(exchangeConfigs.bybit.tickerUrl);
+      const data = await response.json();
+      
+      if (!data.result?.list) return [];
+      
+      return data.result.list
+        .filter((ticker: any) => ticker.symbol.endsWith('USDT'))
+        .map((ticker: any) => ({
+          symbol: ticker.symbol,
+          baseAsset: ticker.symbol.replace('USDT', ''),
+          quoteAsset: 'USDT',
+          price: parseFloat(ticker.lastPrice),
+          change24h: parseFloat(ticker.price24hPcnt) * 100,
+          volume24h: parseFloat(ticker.turnover24h),
+          high24h: parseFloat(ticker.highPrice24h),
+          low24h: parseFloat(ticker.lowPrice24h),
+        }));
+    };
+
+    const fetchCoinbaseData = async (): Promise<CryptoTicker[]> => {
+      const productsResponse = await fetch(exchangeConfigs.coinbase.tickerUrl);
+      const products = await productsResponse.json();
+      
+      const usdtProducts = products.filter((product: any) => 
+        product.quote_currency === 'USD' && product.status === 'online'
+      );
+
+      const tickers = await Promise.all(
+        usdtProducts.slice(0, 50).map(async (product: any) => {
+          try {
+            const statsUrl = exchangeConfigs.coinbase.statsUrl.replace('{symbol}', product.id);
+            const statsResponse = await fetch(statsUrl);
+            const stats = await statsResponse.json();
+            
+            return {
+              symbol: `${product.base_currency}USD`,
+              baseAsset: product.base_currency,
+              quoteAsset: 'USD',
+              price: parseFloat(stats.last) || 0,
+              change24h: parseFloat(stats.open) ? 
+                ((parseFloat(stats.last) - parseFloat(stats.open)) / parseFloat(stats.open)) * 100 : 0,
+              volume24h: parseFloat(stats.volume) || 0,
+              high24h: parseFloat(stats.high) || 0,
+              low24h: parseFloat(stats.low) || 0,
+            };
+          } catch {
+            return null;
+          }
+        })
+      );
+
+      return tickers.filter(Boolean) as CryptoTicker[];
+    };
+
     const fetchData = async () => {
       setLoading(true);
       setError(null);
 
       try {
-        let exchange;
-        
-        // Initialize exchange
+        let processedTickers: CryptoTicker[] = [];
+
         switch (exchangeName) {
           case 'binance':
-            exchange = new ccxt.binance({
-              sandbox: false,
-              enableRateLimit: true,
-            });
+            processedTickers = await fetchBinanceData();
             break;
           case 'bybit':
-            exchange = new ccxt.bybit({
-              sandbox: false,
-              enableRateLimit: true,
-            });
+            processedTickers = await fetchBybitData();
             break;
           case 'coinbase':
-            exchange = new ccxt.coinbase({
-              sandbox: false,
-              enableRateLimit: true,
-            });
+            processedTickers = await fetchCoinbaseData();
             break;
           default:
             throw new Error('Unsupported exchange');
         }
 
-        // Fetch markets and tickers
-        const markets = await exchange.loadMarkets();
-        const tickersData = await exchange.fetchTickers();
-
         if (!isMounted) return;
 
-        // Filter for USDT pairs and process data
-        const processedTickers: CryptoTicker[] = Object.entries(tickersData)
-          .filter(([symbol]) => {
-            const market = markets[symbol];
-            return market && market.quote === 'USDT' && market.active;
-          })
-          .map(([symbol, ticker]: [string, any]) => {
-            const market = markets[symbol];
-            return {
-              symbol,
-              baseAsset: market.base,
-              quoteAsset: market.quote,
-              price: ticker.last || ticker.close || 0,
-              change24h: ticker.percentage || ticker.change || 0,
-              volume24h: ticker.quoteVolume || ticker.baseVolume || 0,
-              high24h: ticker.high || 0,
-              low24h: ticker.low || 0,
-            };
-          })
-          .filter(ticker => {
+        // Filter by search query
+        const filteredTickers = processedTickers.filter(ticker => {
+          if (!searchQuery) return true;
+          return ticker.baseAsset.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                 ticker.symbol.toLowerCase().includes(searchQuery.toLowerCase());
+        });
+
+        // Sort by volume and limit to top 100
+        const sortedTickers = filteredTickers
+          .sort((a, b) => b.volume24h - a.volume24h)
+          .slice(0, 100);
+
+        setTickers(sortedTickers);
+      } catch (err) {
+        if (isMounted) {
+          console.warn('API failed, using mock data:', err);
+          
+          // Use mock data as fallback
+          let fallbackData = [...mockCryptoData];
+          
+          // Update prices to simulate real-time data
+          fallbackData = updateMockPrices(fallbackData);
+          
+          // Filter by search query
+          const filteredMockData = fallbackData.filter(ticker => {
             if (!searchQuery) return true;
             return ticker.baseAsset.toLowerCase().includes(searchQuery.toLowerCase()) ||
                    ticker.symbol.toLowerCase().includes(searchQuery.toLowerCase());
-          })
-          .sort((a, b) => b.volume24h - a.volume24h)
-          .slice(0, 100); // Limit to top 100 by volume
+          });
 
-        setTickers(processedTickers);
-      } catch (err) {
-        if (isMounted) {
-          console.error('Error fetching crypto data:', err);
-          setError(err instanceof Error ? err.message : 'Failed to fetch data');
+          setTickers(filteredMockData);
+          setError(`Using demo data - ${exchangeName} API unavailable in browser`);
         }
       } finally {
         if (isMounted) {

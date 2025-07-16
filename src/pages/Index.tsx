@@ -86,7 +86,7 @@ const Index = () => {
             <div className="flex flex-col md:flex-row justify-between items-center">
               <div className="flex items-center space-x-2 mb-4 md:mb-0">
                 <div className="text-sm text-muted-foreground">
-                  Powered by CCXT • Real-time data from {selectedExchange}
+                  Real-time data from {selectedExchange} API • Futuristic 3D Interface
                 </div>
               </div>
               <div className="text-sm text-muted-foreground">
