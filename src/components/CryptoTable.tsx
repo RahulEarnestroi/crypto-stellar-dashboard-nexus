@@ -1,21 +1,27 @@
 import { useState } from 'react';
-import { ChevronUp, ChevronDown, Star, TrendingUp, TrendingDown } from 'lucide-react';
+import { ChevronUp, ChevronDown, Star, TrendingUp, TrendingDown, Activity } from 'lucide-react';
 import { CryptoTicker } from '@/hooks/useCryptoData';
+import { EnhancedCryptoTicker, useCryptoStore } from '@/stores/cryptoStore';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { motion } from 'framer-motion';
 
 interface CryptoTableProps {
-  tickers: CryptoTicker[];
+  tickers: EnhancedCryptoTicker[];
   loading: boolean;
 }
 
-type SortField = 'symbol' | 'price' | 'change24h' | 'volume24h';
+type SortField = 'symbol' | 'price' | 'change24h' | 'volume24h' | 'rsi' | 'macd';
 type SortDirection = 'asc' | 'desc';
 
 export function CryptoTable({ tickers, loading }: CryptoTableProps) {
   const [sortField, setSortField] = useState<SortField>('volume24h');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [watchlist, setWatchlist] = useState<Set<string>>(new Set());
+  const { filteredTickers } = useCryptoStore();
+  
+  // Use filtered tickers from store if available, otherwise use props
+  const displayTickers = filteredTickers.length > 0 ? filteredTickers : tickers;
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -37,9 +43,19 @@ export function CryptoTable({ tickers, loading }: CryptoTableProps) {
     localStorage.setItem('crypto-watchlist', JSON.stringify(Array.from(newWatchlist)));
   };
 
-  const sortedTickers = [...tickers].sort((a, b) => {
-    const aValue = a[sortField];
-    const bValue = b[sortField];
+  const sortedTickers = [...displayTickers].sort((a, b) => {
+    let aValue: any, bValue: any;
+    
+    if (sortField === 'rsi') {
+      aValue = a.indicators?.rsi || 50;
+      bValue = b.indicators?.rsi || 50;
+    } else if (sortField === 'macd') {
+      aValue = a.indicators?.macd || 0;
+      bValue = b.indicators?.macd || 0;
+    } else {
+      aValue = a[sortField];
+      bValue = b[sortField];
+    }
     
     if (typeof aValue === 'string' && typeof bValue === 'string') {
       return sortDirection === 'asc' 
@@ -148,6 +164,26 @@ export function CryptoTable({ tickers, loading }: CryptoTableProps) {
                 </Button>
               </th>
               <th className="text-center p-4">
+                <Button
+                  variant="ghost"
+                  onClick={() => handleSort('rsi')}
+                  className="flex items-center space-x-1 text-sm font-medium text-muted-foreground hover:text-foreground"
+                >
+                  <span>RSI</span>
+                  <SortIcon field="rsi" />
+                </Button>
+              </th>
+              <th className="text-center p-4">
+                <Button
+                  variant="ghost"
+                  onClick={() => handleSort('macd')}
+                  className="flex items-center space-x-1 text-sm font-medium text-muted-foreground hover:text-foreground"
+                >
+                  <span>MACD</span>
+                  <SortIcon field="macd" />
+                </Button>
+              </th>
+              <th className="text-center p-4">
                 <span className="text-sm font-medium text-muted-foreground">Chart</span>
               </th>
             </tr>
@@ -214,9 +250,34 @@ export function CryptoTable({ tickers, loading }: CryptoTableProps) {
                     {formatVolume(ticker.volume24h)}
                   </div>
                 </td>
+                <td className="p-4 text-center">
+                  <Badge
+                    variant="outline"
+                    className={`
+                      ${(ticker.indicators?.rsi || 50) > 70 
+                        ? 'border-destructive/50 text-destructive bg-destructive/10' 
+                        : (ticker.indicators?.rsi || 50) < 30 
+                        ? 'border-success/50 text-success bg-success/10'
+                        : 'border-muted-foreground/50 text-muted-foreground'
+                      }
+                    `}
+                  >
+                    {(ticker.indicators?.rsi || 50).toFixed(0)}
+                  </Badge>
+                </td>
+                <td className="p-4 text-center">
+                  <div className="flex items-center justify-center space-x-1">
+                    <div className={`h-2 w-2 rounded-full ${
+                      (ticker.indicators?.macd || 0) > 0 ? 'bg-success' : 'bg-destructive'
+                    }`} />
+                    <span className="text-xs font-mono">
+                      {(ticker.indicators?.macd || 0).toFixed(4)}
+                    </span>
+                  </div>
+                </td>
                 <td className="p-4">
                   <div className="h-12 w-20 bg-gradient-to-r from-primary/20 to-accent/20 rounded flex items-center justify-center">
-                    <div className="text-xs text-muted-foreground">📈</div>
+                    <Activity className="h-4 w-4 text-primary/60" />
                   </div>
                 </td>
               </motion.tr>

@@ -3,6 +3,8 @@ import { ThreeBackground } from '@/components/ThreeBackground';
 import { Header } from '@/components/Header';
 import { Stats } from '@/components/Stats';
 import { CryptoTable } from '@/components/CryptoTable';
+import { FilterBuilder } from '@/components/FilterBuilder';
+import { MarketOverview } from '@/components/MarketOverview';
 import { useCryptoData } from '@/hooks/useCryptoData';
 import { motion } from 'framer-motion';
 import { AlertCircle } from 'lucide-react';
@@ -38,10 +40,10 @@ const Index = () => {
           >
             <div className="text-center mb-8">
               <h1 className="text-4xl md:text-6xl font-bold mb-4 neon-text">
-                CryptoScope
+                CryptoScope Pro
               </h1>
               <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-                Real-time cryptocurrency market data with immersive animated visualization
+                Professional cryptocurrency terminal with advanced screening and technical analysis
               </p>
             </div>
           </motion.div>
@@ -62,6 +64,10 @@ const Index = () => {
             </motion.div>
           ) : (
             <>
+              <MarketOverview />
+              <div className="mb-6">
+                <FilterBuilder />
+              </div>
               <Stats tickers={tickers} loading={loading} />
               <CryptoTable tickers={tickers} loading={loading} />
             </>

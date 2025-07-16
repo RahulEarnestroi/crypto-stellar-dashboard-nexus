@@ -2,6 +2,7 @@ import { Search, TrendingUp, Settings, Moon, Sun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { TimeFrameSelector } from '@/components/TimeFrameSelector';
 import { useState } from 'react';
 
 interface HeaderProps {
@@ -30,12 +31,15 @@ export function Header({ selectedExchange, onExchangeChange, searchQuery, onSear
             </div>
             <div className="flex flex-col">
               <h1 className="text-xl font-bold neon-text">CryptoScope</h1>
-              <p className="text-xs text-muted-foreground">3D Market Scanner</p>
+              <p className="text-xs text-muted-foreground">Professional Market Terminal</p>
             </div>
           </div>
 
           {/* Controls */}
           <div className="flex items-center space-x-4">
+            {/* Time Frame Selector */}
+            <TimeFrameSelector />
+            
             {/* Exchange Selector */}
             <Select value={selectedExchange} onValueChange={onExchangeChange}>
               <SelectTrigger className="w-32 border-glow bg-card/50">
