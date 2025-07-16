@@ -38,10 +38,10 @@ const Index = () => {
           >
             <div className="text-center mb-8">
               <h1 className="text-4xl md:text-6xl font-bold mb-4 neon-text">
-                CryptoScope 3D
+                CryptoScope
               </h1>
               <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-                Real-time cryptocurrency market data with immersive 3D visualization
+                Real-time cryptocurrency market data with immersive animated visualization
               </p>
             </div>
           </motion.div>
@@ -86,7 +86,7 @@ const Index = () => {
             <div className="flex flex-col md:flex-row justify-between items-center">
               <div className="flex items-center space-x-2 mb-4 md:mb-0">
                 <div className="text-sm text-muted-foreground">
-                  Real-time data from {selectedExchange} API • Futuristic 3D Interface
+                  Real-time data from {selectedExchange} API • Futuristic Animated Interface
                 </div>
               </div>
               <div className="text-sm text-muted-foreground">

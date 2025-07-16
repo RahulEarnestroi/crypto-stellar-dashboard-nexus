@@ -115,6 +115,12 @@ export default {
 				'pulse-glow': 'pulse-glow 2s ease-in-out infinite',
 				'slide-in-up': 'slide-in-up 0.6s ease-out',
 				'shimmer': 'shimmer 2s infinite'
+			},
+			animationDelay: {
+				'0': '0s',
+				'1000': '1s',
+				'2000': '2s',
+				'3000': '3s',
 			}
 		}
 	},
